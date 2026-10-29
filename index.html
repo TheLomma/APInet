@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d0b14">
+<title>APINet 1.0</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#0d0b14;--panel:#171425;--line:#2b2540;--gold:#e7b75c;--text:#f2ecff;--muted:#9d94b8;--ok:#7ddc9a;--bad:#ff7a8a;--radius:12px}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.4;font-size:15px}
+header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+h1{font-size:22px;margin:0;color:var(--gold);letter-spacing:.5px}
+.tag{color:var(--muted);font-size:13px}
+.ver{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:999px;margin-left:8px}
+main{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:20px;padding:20px;max-width:1200px;margin:0 auto}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0}
+h2{font-size:16px;margin:0 0 12px;color:var(--gold)}
+.screen{background:#000;border:2px solid var(--line);border-radius:10px;padding:18px 12px;min-height:140px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;color:#fff;overflow:hidden}
+.screen .l1{font-size:26px;font-weight:700;word-break:break-word}
+.screen .l2{font-size:18px;margin-top:6px;word-break:break-word}
+.btn{background:var(--gold);color:#1a1200;border:0;padding:9px 14px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line);font-weight:500}
+.btn.danger{background:var(--bad);color:#2a0008}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input,select,textarea{width:100%;background:#0f0c18;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+input[type=checkbox]{width:auto}
+textarea{min-height:60px;resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.check{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text)}
+.src{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.src.off{opacity:.55}
+.badge{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.ok{color:var(--ok)}
+.err{color:var(--bad)}
+.muted{color:var(--muted);font-size:13px}
+.url{word-break:break-all}
+.log{font-family:ui-monospace,Menlo,monospace;font-size:12px;max-height:260px;overflow:auto;background:#0f0c18;border-radius:8px;padding:8px}
+.log div{padding:2px 0;border-bottom:1px dotted var(--line)}
+.hint{background:#241d10;border:1px solid #5a4620;color:#f3d9a4;border-radius:8px;padding:10px;font-size:13px;margin:10px 0}
+.hidden{display:none}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:16px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>APINet<span class="ver">v1.0</span></h1>
+    <div class="tag">Daten aus beliebigen APIs, direkt aufs Display.</div>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+    <section class="panel" aria-labelledby="h-display">
+      <h2 id="h-display">Display</h2>
+      <div class="screen" id="screen" role="status" aria-live="polite">
+        <div class="l1" id="l1">Bereit</div>
+        <div class="l2" id="l2"></div>
+      </div>
+      <div class="row" style="margin-top:12px;justify-content:space-between">
+        <span id="btStatus" class="muted">Nicht verbunden (nur Vorschau)</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btConnect">Display verbinden</button>
+        <button class="btn ghost" id="btDisconnect" disabled>Trennen</button>
+      </div>
+      <div id="btHint" class="hint hidden"></div>
+      <div class="muted" id="queueInfo" style="margin-top:8px">Warteschlange: 0</div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-manual">
+      <h2 id="h-manual">Manuelle Nachricht</h2>
+      <textarea id="manualText" placeholder="Zeile 1&#10;Zeile 2" maxlength="160"></textarea>
+      <div class="row" style="margin-top:8px">
+        <label for="manualSec" style="margin:0">Sekunden</label>
+        <input id="manualSec" type="number" min="1" max="255" value="5" style="width:90px">
+        <button class="btn" id="manualSend">Anzeigen</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-settings">
+      <h2 id="h-settings">Einstellungen</h2>
+      <div class="grid2">
+        <div>
+          <label for="setRotation">Rotation (Sekunden)</label>
+          <input id="setRotation" type="number" min="5" max="3600">
+        </div>
+        <div>
+          <label for="setDefault">Anzeigedauer (s)</label>
+          <input id="setDefault" type="number" min="1" max="255">
+        </div>
+        <div>
+          <label for="setQueue">Warteschlange</label>
+          <select id="setQueue">
+            <option value="replace">Neu anzeigen, Queue leeren</option>
+            <option value="back">Hinten anhängen</option>
+          </select>
+        </div>
+        <div>
+          <label for="setMsgCtrl">Anzeigeverhalten</label>
+          <select id="setMsgCtrl">
+            <option value="timer">Feste Dauer</option>
+            <option value="button">Bis Tastendruck</option>
+            <option value="event">Bis nächstem Ereignis</option>
+          </select>
+        </div>
+        <div>
+          <label for="setChunk">Paketgröße (Byte)</label>
+          <input id="setChunk" type="number" min="20" max="512">
+        </div>
+      </div>
+      <label class="check"><input id="setTranslit" type="checkbox"> Umlaute und Sonderzeichen ersetzen (ä zu ae, € zu EUR)</label>
+      <label class="check"><input id="setAcceptAll" type="checkbox"> Alle Geräte anzeigen (falls das Display nicht gefunden wird)</label>
+      <label class="check"><input id="setAttrOn" type="checkbox"> Textfarben und Größe senden</label>
+      <div class="grid2 hidden" id="attrBox" style="margin-top:10px">
+        <div><label for="attr_l1Color">Zeile 1: Textfarbe</label><input id="attr_l1Color" type="number" min="0" max="255"></div>
+        <div><label for="attr_l1Bg">Zeile 1: Hintergrund</label><input id="attr_l1Bg" type="number" min="0" max="255"></div>
+        <div><label for="attr_l1Size">Zeile 1: Größe (0 bis 3)</label><input id="attr_l1Size" type="number" min="0" max="3"></div>
+        <div><label for="attr_l1Speed">Zeile 1: Laufgeschw. (0 bis 5)</label><input id="attr_l1Speed" type="number" min="0" max="5"></div>
+        <div><label for="attr_l2Color">Zeile 2: Textfarbe</label><input id="attr_l2Color" type="number" min="0" max="255"></div>
+        <div><label for="attr_l2Bg">Zeile 2: Hintergrund</label><input id="attr_l2Bg" type="number" min="0" max="255"></div>
+        <div><label for="attr_l2Size">Zeile 2: Größe (0 bis 3)</label><input id="attr_l2Size" type="number" min="0" max="3"></div>
+        <div><label for="attr_l2Speed">Zeile 2: Laufgeschw. (0 bis 5)</label><input id="attr_l2Speed" type="number" min="0" max="5"></div>
+      </div>
+      <p class="muted">Die Farbcodes stehen im Anhang „Constant Definitions“ des Protokolls. Ohne Häkchen werden keine Farben gesendet.</p>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="panel" aria-labelledby="h-sources">
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <h2 id="h-sources" style="margin:0">Datenquellen</h2>
+        <button class="btn" id="newSource">Neue Quelle</button>
+      </div>
+      <div id="sourceList"></div>
+    </section>
+
+    <section class="panel hidden" id="srcFormPanel" aria-labelledby="h-form">
+      <h2 id="h-form">Quelle bearbeiten</h2>
+      <div class="grid2">
+        <div><label for="fName">Name</label><input id="fName" placeholder="z. B. Bahn Verspätung"></div>
+        <div><label for="fMode">Anzeige</label>
+          <select id="fMode">
+            <option value="change">Nur bei Änderung</option>
+            <option value="rotate">In der Rotation</option>
+          </select>
+        </div>
+      </div>
+      <label for="fUrl">URL</label>
+      <input id="fUrl" placeholder="https://… oder demo:random">
+      <div class="grid2">
+        <div><label for="fMethod">Methode</label>
+          <select id="fMethod"><option>GET</option><option>POST</option></select>
+        </div>
+        <div><label for="fInterval">Abruf alle (Sekunden, min. 5)</label>
+          <input id="fInterval" type="number" min="5" max="86400" value="15">
+        </div>
+      </div>
+      <label for="fHeaders">Header (JSON, optional)</label>
+      <textarea id="fHeaders" placeholder='{"Authorization":"Bearer …"}'></textarea>
+      <label for="fBody">Body (bei POST, optional)</label>
+      <textarea id="fBody" placeholder='{"abfrage":"preis"}'></textarea>
+      <label for="fPath">Feldpfad in der Antwort (optional)</label>
+      <input id="fPath" placeholder="z. B. data.0.price  (leer = ganze Antwort)">
+      <label for="fTemplate">Vorlage (eine Zeile pro Zeile auf dem Display)</label>
+      <textarea id="fTemplate">{name}
+{value}</textarea>
+      <p class="muted">Platzhalter: {name}, {value}, {time} (Uhrzeit des Abrufs). Das Display zeigt maximal zwei Zeilen; weitere Zeilen werden zusammengefasst.</p>
+      <label class="check"><input id="fEnabled" type="checkbox" checked> Quelle aktiv</label>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="saveSource">Speichern</button>
+        <button class="btn ghost" id="testSource">Jetzt testen</button>
+        <button class="btn ghost" id="cancelSource">Abbrechen</button>
+      </div>
+      <div id="srcResult" class="muted" style="margin-top:10px" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <section class="panel" style="grid-column:1/-1" aria-labelledby="h-log">
+    <h2 id="h-log">Protokoll</h2>
+    <div class="log" id="log" role="log" aria-live="polite"></div>
+  </section>
+</main>
+
+<footer>APINet v1.0 · Lokale Web-App, kein Server. Eine Verbindung zu Unifi oder Illuminati Magic besteht nicht.</footer>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- Konstanten: Unifi Thumper/Notifier BLE Protocol V3.6 ---------- */
+const UUID = {
+  NOTIFIER_SVC: 'c4b0a4d7-f320-5597-0347-281ab31e0383',
+  THUMPER_SVC:  'c4b0a4c7-f320-5597-0347-281ab31e0383',
+  SERIAL_SVC:   '3f461400-00b0-4240-ba50-05ca45bf8abc',
+  TEXT_ATTR:    'c4b0ab40-f320-5597-0347-281ab31e0383',
+  SEND_MSG:     'c4b0ab41-f320-5597-0347-281ab31e0383',
+  QUEUE_MSG:    'c4b0ab45-f320-5597-0347-281ab31e0383'
+};
+const QUEUE_CTRL = { replace: 0x00, back: 0x02 };
+const MSG_CTRL   = { button: 0x01, event: 0x02, timer: 0x08 };
+const UMLAUT = {'ä':'ae','ö':'oe','ü':'ue','Ä':'Ae','Ö':'Oe','Ü':'Ue','ß':'ss','€':'EUR','–':'-','—':'-','„':'"','“':'"','’':"'"};
+const TEXT_SIZES = [14, 22, 30, 20];
+
+/* ---------- Zustand ---------- */
+const STORE_KEY = 'apinet.v1';
+const $ = id => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, Number.isFinite(n) ? n : lo));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const DEFAULTS = () => ({
+  sources: [{
+    id: uid(), name: 'Zufallswert (Test)', url: 'demo:random', method: 'GET', headers: '', body: '',
+    valuePath: 'value', intervalSec: 15, mode: 'change', template: '{name}\n{value}', enabled: true
+  }],
+  settings: {
+    rotationSec: 20, defaultSec: 5, queueMode: 'replace', msgControl: 'timer',
+    transliterate: true, chunkSize: 20, acceptAll: false, useAttributes: false,
+    attrs: { l1Color: 8, l1Bg: 12, l1Size: 1, l1Speed: 0, l2Color: 6, l2Bg: 8, l2Size: 0, l2Speed: 1 }
+  }
+});
+
+function loadState() {
+  const d = DEFAULTS();
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { s = {}; }
+  const ss = s.settings || {};
+  return {
+    sources: Array.isArray(s.sources) && s.sources.length ? s.sources : d.sources,
+    settings: { ...d.settings, ...ss, attrs: { ...d.settings.attrs, ...(ss.attrs || {}) } }
+  };
+}
+let state = loadState();
+function saveState() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* Speicher nicht verfügbar */ } }
+const findSource = id => state.sources.find(s => s.id === id);
+
+/* ---------- Protokoll-Hilfen ---------- */
+function extract(text, path) {
+  let data;
+  try { data = JSON.parse(text); } catch (e) { return text.trim(); }
+  if (!path) return typeof data === 'string' ? data : JSON.stringify(data);
+  let cur = data;
+  for (const part of path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean)) {
+    if (cur === null || cur === undefined) return undefined;
+    cur = cur[part];
+  }
+  if (cur === undefined) return undefined;
+  return typeof cur === 'object' ? JSON.stringify(cur) : String(cur);
+}
+
+function render(src, value) {
+  const time = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return (src.template || '{value}')
+    .replace(/\\n/g, '\n')
+    .replace(/\{name\}/g, src.name)
+    .replace(/\{value\}/g, value)
+    .replace(/\{time\}/g, time);
+}
+
+/* Bereitet Text für das Display vor: max. 2 Zeilen, getrennt durch CR (0x0D), max. 160 Zeichen, ASCII */
+function prepareText(text) {
+  let t = String(text).replace(/\r\n?/g, '\n');
+  if (state.settings.transliterate) t = t.replace(/[äöüÄÖÜß€–—„“’]/g, c => UMLAUT[c]);
+  t = t.replace(/[^\x20-\x7E\n]/g, '');
+  let lines = t.split('\n').map(s => s.trim()).filter(s => s.length);
+  if (!lines.length) lines = [''];
+  if (lines.length > 2) lines = [lines[0], lines.slice(1).join(' ')];
+  let joined = lines.join('\r');
+  if (joined.length > 160) joined = joined.slice(0, 160);
+  return joined;
+}
+
+const hex = bytes => Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const enc = new TextEncoder();
+
+/* ---------- Bluetooth ---------- */
+const ble = { device: null, chars: null };
+const isConnected = () => !!(ble.chars && ble.chars.send);
+
+async function connectBle() {
+  if (!navigator.bluetooth) throw new Error('Web Bluetooth ist in diesem Browser nicht verfügbar.');
+  const optionalServices = [UUID.NOTIFIER_SVC, UUID.THUMPER_SVC, UUID.SERIAL_SVC];
+  const options = state.settings.acceptAll
+    ? { acceptAllDevices: true, optionalServices }
+    : { filters: [{ services: [UUID.NOTIFIER_SVC] }, { services: [UUID.THUMPER_SVC] }], optionalServices };
+  setStatus('Suche Gerät …');
+  const device = await navigator.bluetooth.requestDevice(options);
+  device.addEventListener('gattserverdisconnected', onDisconnect);
+  const server = await device.gatt.connect();
+  let svc = null;
+  for (const u of [UUID.NOTIFIER_SVC, UUID.THUMPER_SVC]) {
+    try { svc = await server.getPrimaryService(u); break; } catch (e) { /* nächsten Dienst probieren */ }
+  }
+  if (!svc) throw new Error('Kein Notifier- oder Thumper-Dienst auf dem Gerät gefunden.');
+  const chars = {
+    attr: await svc.getCharacteristic(UUID.TEXT_ATTR).catch(() => null),
+    send: await svc.getCharacteristic(UUID.SEND_MSG),
+    queue: await svc.getCharacteristic(UUID.QUEUE_MSG)
+  };
+  ble.device = device;
+  ble.chars = chars;
+  setStatus('Verbunden: ' + (device.name || 'Unbekanntes Gerät'), true);
+  $('btConnect').disabled = true;
+  $('btDisconnect').disabled = false;
+  log('ok', 'Display verbunden');
+}
+
+function onDisconnect() {
+  ble.chars = null;
+  setStatus('Getrennt (Vorschau läuft weiter)');
+  $('btConnect').disabled = false;
+  $('btDisconnect').disabled = true;
+  log('err', 'Verbindung getrennt');
+}
+
+async function writeChar(ch, bytes) {
+  if (ch.properties && ch.properties.writeWithoutResponse) await ch.writeValueWithoutResponse(bytes);
+  else await ch.writeValue(bytes);
+}
+
+function setStatus(text, ok) {
+  $('btStatus').textContent = text;
+  $('btStatus').className = ok ? 'ok' : 'muted';
+}
+
+/* ---------- Anzeige-Warteschlange ---------- */
+const queue = [];
+let busy = false;
+
+function enqueue(item, front = false) {
+  if (front) queue.unshift(item); else queue.push(item);
+  updateQueueInfo();
+  pump();
+}
+
+function updateQueueInfo() {
+  $('queueInfo').textContent = 'Warteschlange: ' + queue.length + (isConnected() ? ' · verbunden' : ' · nur Vorschau');
+}
+
+async function pump() {
+  if (busy) return;
+  busy = true;
+  try {
+    while (queue.length) {
+      const item = queue.shift();
+      updateQueueInfo();
+      await showOnDisplay(item);
+      await sleep(item.seconds * 1000 + 300);
+    }
+  } finally {
+    busy = false;
+    updateQueueInfo();
+  }
+}
+
+async function showOnDisplay(item) {
+  const payload = prepareText(item.text);
+  previewShow(payload);
+  const bytes = enc.encode(payload);
+  const seconds = clamp(parseInt(item.seconds, 10) || state.settings.defaultSec, 1, 255);
+  if (!isConnected()) {
+    log('info', 'Vorschau: ' + payload.replace(/\r/g, ' | ') + ' (' + seconds + ' s)');
+    return;
+  }
+  try {
+    for (let i = 0; i < bytes.length; i += state.settings.chunkSize) {
+      await writeChar(ble.chars.send, bytes.slice(i, i + state.settings.chunkSize));
+    }
+    const s = state.settings;
+    if (s.useAttributes && ble.chars.attr) {
+      const a = s.attrs;
+      await writeChar(ble.chars.attr, Uint8Array.of(a.l1Color, a.l1Bg, a.l1Size, a.l1Speed, a.l2Color, a.l2Bg, a.l2Size, a.l2Speed));
+    }
+    const q = Uint8Array.of(QUEUE_CTRL[s.queueMode], MSG_CTRL[s.msgControl], seconds);
+    await writeChar(ble.chars.queue, q);
+    log('ok', 'Gesendet: ' + payload.replace(/\r/g, ' | ') + ' · ' + bytes.length + ' Byte · Queue ' + hex(q));
+  } catch (e) {
+    log('err', 'Sendefehler: ' + (e.message || e));
+  }
+}
+
+function previewShow(payload) {
+  const parts = payload.split('\r');
+  const a = state.settings.attrs;
+  $('l1').textContent = parts[0] || '';
+  $('l2').textContent = parts[1] || '';
+  $('l1').style.fontSize = TEXT_SIZES[clamp(a.l1Size, 0, 3)] + 'px';
+  $('l2').style.fontSize = TEXT_SIZES[clamp(a.l2Size, 0, 3)] + 'px';
+}
+
+/* ---------- Datenquellen ---------- */
+async function fetchSource(s) {
+  if (s.url.startsWith('demo:')) {
+    const value = (s.last === undefined || Math.random() < 0.3)
+      ? String(Math.floor(Math.random() * 90) + 10)
+      : s.last;
+    return { ok: true, value };
+  }
+  let headers = {};
+  if (s.headers && s.headers.trim()) {
+    try { headers = JSON.parse(s.headers); } catch (e) { return { ok: false, error: 'Header ist kein gültiges JSON' }; }
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const opts = { method: s.method || 'GET', headers, signal: ctrl.signal, cache: 'no-store' };
+    if (opts.method === 'POST' && s.body) {
+      opts.body = s.body;
+      if (!headers['Content-Type'] && !headers['content-type']) headers['Content-Type'] = 'application/json';
+    }
+    const r = await fetch(s.url, opts);
+    if (!r.ok) return { ok: false, error: 'HTTP ' + r.status };
+    const value = extract(await r.text(), s.valuePath);
+    if (value === undefined) return { ok: false, error: 'Pfad "' + s.valuePath + '" nicht gefunden' };
+    return { ok: true, value };
+  } catch (e) {
+    return { ok: false, error: e.name === 'AbortError' ? 'Zeitüberschreitung' : 'Netzwerk- oder CORS-Fehler' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const pollers = new Map();
+let rotTimer = null;
+let rotIdx = 0;
+
+function startPollers() {
+  pollers.forEach(t => clearTimeout(t));
+  pollers.clear();
+  state.sources.forEach(s => { if (s.enabled) schedule(s.id, 0); });
+}
+
+function schedule(id, delay) {
+  pollers.set(id, setTimeout(() => poll(id), delay));
+}
+
+async function poll(id) {
+  const s = findSource(id);
+  if (!s || !s.enabled) return;
+  const res = await fetchSource(s);
+  const cur = findSource(id);
+  if (!cur || !cur.enabled) return;
+  if (res.ok) {
+    cur.error = '';
+    cur.lastCheck = new Date().toLocaleTimeString('de-DE');
+    if (cur.last !== res.value) {
+      cur.last = res.value;
+      if (cur.mode === 'change') {
+        enqueue({ text: render(cur, res.value), seconds: state.settings.defaultSec, src: cur.id }, true);
+        log('info', cur.name + ': neuer Wert ' + res.value);
+      }
+    }
+  } else {
+    cur.error = res.error;
+    log('err', cur.name + ': ' + res.error);
+  }
+  saveState();
+  renderSources();
+  schedule(id, Math.max(5, cur.intervalSec) * 1000);
+}
+
+function startRotation() {
+  clearInterval(rotTimer);
+  rotTimer = setInterval(() => {
+    if (queue.length >= 2) return;
+    const rot = state.sources.filter(s => s.enabled && s.mode === 'rotate' && s.last !== undefined);
+    if (!rot.length) return;
+    const s = rot[rotIdx % rot.length];
+    rotIdx++;
+    enqueue({ text: render(s, s.last), seconds: state.settings.defaultSec, src: s.id });
+  }, Math.max(5, state.settings.rotationSec) * 1000);
+}
+
+/* ---------- Oberfläche: Quellen ---------- */
+function renderSources() {
+  $('sourceList').innerHTML = state.sources.length ? state.sources.map(s => `
+    <div class="src ${s.enabled ? '' : 'off'}">
+      <div class="row" style="justify-content:space-between">
+        <strong>${esc(s.name)}</strong>
+        <span class="badge">${s.mode === 'change' ? 'bei Änderung' : 'Rotation'} · alle ${esc(s.intervalSec)} s</span>
+      </div>
+      <div class="muted url">${esc(s.url)}</div>
+      <div style="margin-top:6px">Letzter Wert: <strong>${esc(s.last ?? '–')}</strong>
+        ${s.lastCheck ? `<span class="muted"> · ${esc(s.lastCheck)}</span>` : ''}
+        ${s.error ? `<div class="err">${esc(s.error)}</div>` : ''}
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost" data-act="edit" data-id="${s.id}">Bearbeiten</button>
+        <button class="btn ghost" data-act="test" data-id="${s.id}">Testen</button>
+        <button class="btn ghost" data-act="toggle" data-id="${s.id}">${s.enabled ? 'Pausieren' : 'Aktivieren'}</button>
+        <button class="btn danger" data-act="del" data-id="${s.id}">Löschen</button>
+      </div>
+    </div>`).join('') : '<p class="muted">Noch keine Quelle angelegt.</p>';
+}
+
+let editingId = null;
+
+function openForm(s) {
+  editingId = s ? s.id : null;
+  $('h-form').textContent = s ? 'Quelle bearbeiten' : 'Neue Quelle';
+  const v = s || { name: '', url: '', method: 'GET', headers: '', body: '', valuePath: '', intervalSec: 15, mode: 'change', template: '{name}\n{value}', enabled: true };
+  $('fName').value = v.name;
+  $('fUrl').value = v.url;
+  $('fMethod').value = v.method;
+  $('fHeaders').value = v.headers;
+  $('fBody').value = v.body;
+  $('fPath').value = v.valuePath;
+  $('fInterval').value = v.intervalSec;
+  $('fMode').value = v.mode;
+  $('fTemplate').value = v.template;
+  $('fEnabled').checked = v.enabled;
+  $('srcResult').textContent = '';
+  $('srcFormPanel').classList.remove('hidden');
+  $('srcFormPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('fName').focus();
+}
+
+function closeForm() {
+  $('srcFormPanel').classList.add('hidden');
+  editingId = null;
+}
+
+function readForm() {
+  return {
+    name: $('fName').value.trim() || 'Ohne Namen',
+    url: $('fUrl').value.trim(),
+    method: $('fMethod').value,
+    headers: $('fHeaders').value,
+    body: $('fBody').value,
+    valuePath: $('fPath').value.trim(),
+    intervalSec: clamp(parseInt($('fInterval').value, 10), 5, 86400),
+    mode: $('fMode').value,
+    template: $('fTemplate').value,
+    enabled: $('fEnabled').checked
+  };
+}
+
+function saveSource() {
+  const data = readForm();
+  if (!data.url) { $('srcResult').innerHTML = '<span class="err">Bitte eine URL eingeben.</span>'; return; }
+  if (editingId) {
+    const cur = findSource(editingId);
+    if (cur.url !== data.url || cur.valuePath !== data.valuePath) delete cur.last;
+    Object.assign(cur, data);
+  } else {
+    state.sources.push({ id: uid(), ...data });
+  }
+  saveState();
+  renderSources();
+  startPollers();
+  closeForm();
+  log('ok', 'Quelle gespeichert: ' + data.name);
+}
+
+async function testSource() {
+  const data = readForm();
+  $('srcResult').textContent = 'Abruf läuft …';
+  const res = await fetchSource({ ...data, last: editingId ? findSource(editingId)?.last : undefined });
+  if (res.ok) {
+    $('srcResult').innerHTML = '<span class="ok">Wert: ' + esc(res.value) + '</span><br>Vorschau: ' + esc(render({ ...data, name: data.name }, res.value).replace(/\n/g, ' | '));
+    enqueue({ text: render(data, res.value), seconds: state.settings.defaultSec }, true);
+  } else {
+    $('srcResult').innerHTML = '<span class="err">' + esc(res.error) + '</span>';
+  }
+}
+
+/* ---------- Oberfläche: Einstellungen ---------- */
+function renderSettings() {
+  const s = state.settings;
+  $('setRotation').value = s.rotationSec;
+  $('setDefault').value = s.defaultSec;
+  $('setQueue').value = s.queueMode;
+  $('setMsgCtrl').value = s.msgControl;
+  $('setChunk').value = s.chunkSize;
+  $('setTranslit').checked = s.transliterate;
+  $('setAcceptAll').checked = s.acceptAll;
+  $('setAttrOn').checked = s.useAttributes;
+  $('attrBox').classList.toggle('hidden', !s.useAttributes);
+  Object.keys(s.attrs).forEach(k => { $('attr_' + k).value = s.attrs[k]; });
+}
+
+function readSettings() {
+  const s = state.settings;
+  s.rotationSec = clamp(parseInt($('setRotation').value, 10), 5, 3600);
+  s.defaultSec = clamp(parseInt($('setDefault').value, 10), 1, 255);
+  s.queueMode = $('setQueue').value;
+  s.msgControl = $('setMsgCtrl').value;
+  s.chunkSize = clamp(parseInt($('setChunk').value, 10), 20, 512);
+  s.transliterate = $('setTranslit').checked;
+  s.acceptAll = $('setAcceptAll').checked;
+  s.useAttributes = $('setAttrOn').checked;
+  Object.keys(s.attrs).forEach(k => { s.attrs[k] = clamp(parseInt($('attr_' + k).value, 10), 0, 255); });
+  $('attrBox').classList.toggle('hidden', !s.useAttributes);
+  saveState();
+  startRotation();
+}
+
+/* ---------- Protokoll ---------- */
+let logEntries = [];
+function log(type, msg) {
+  const t = new Date().toLocaleTimeString('de-DE');
+  logEntries.unshift({ type, t, msg });
+  logEntries = logEntries.slice(0, 100);
+  $('log').innerHTML = logEntries.map(e =>
+    `<div class="${e.type === 'err' ? 'err' : e.type === 'ok' ? 'ok' : ''}">${esc(e.t)} ${esc(e.msg)}</div>`).join('');
+}
+
+/* ---------- Ereignisse ---------- */
+$('btConnect').addEventListener('click', async () => {
+  try { await connectBle(); }
+  catch (e) { setStatus('Nicht verbunden (nur Vorschau)'); log('err', e.message || String(e)); }
+  updateQueueInfo();
+});
+$('btDisconnect').addEventListener('click', () => { if (ble.device && ble.device.gatt.connected) ble.device.gatt.disconnect(); onDisconnect(); updateQueueInfo(); });
+$('manualSend').addEventListener('click', () => {
+  const text = $('manualText').value;
+  if (!text.trim()) return;
+  enqueue({ text, seconds: parseInt($('manualSec').value, 10) || state.settings.defaultSec }, true);
+});
+$('newSource').addEventListener('click', () => openForm(null));
+$('saveSource').addEventListener('click', saveSource);
+$('testSource').addEventListener('click', testSource);
+$('cancelSource').addEventListener('click', closeForm);
+$('sourceList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const s = findSource(b.dataset.id);
+  if (!s) return;
+  if (b.dataset.act === 'edit') openForm(s);
+  if (b.dataset.act === 'test') {
+    fetchSource(s).then(res => {
+      if (res.ok) { s.last = res.value; s.error = ''; enqueue({ text: render(s, res.value), seconds: state.settings.defaultSec }, true); log('info', s.name + ': Test ' + res.value); }
+      else { s.error = res.error; log('err', s.name + ': ' + res.error); }
+      saveState(); renderSources();
+    });
+  }
+  if (b.dataset.act === 'toggle') { s.enabled = !s.enabled; saveState(); renderSources(); startPollers(); }
+  if (b.dataset.act === 'del') {
+    if (!confirm('Quelle "' + s.name + '" löschen?')) return;
+    state.sources = state.sources.filter(x => x.id !== s.id);
+    saveState(); renderSources(); startPollers();
+  }
+});
+document.querySelectorAll('#h-settings input, #h-settings select').forEach(el => el.addEventListener('change', readSettings));
+
+/* ---------- Start ---------- */
+renderSettings();
+renderSources();
+previewShow('');
+updateQueueInfo();
+if (!navigator.bluetooth) {
+  $('btHint').textContent = 'Dieser Browser unterstützt kein Web Bluetooth. Die Vorschau funktioniert trotzdem. Für echte Verbindung: Chrome oder Edge auf Android, oder Bluefy auf dem iPhone.';
+  $('btHint').classList.remove('hidden');
+  $('btConnect').disabled = true;
+}
+log('info', 'APINet 1.0 gestartet');
+startPollers();
+startRotation();
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+})();
+</script>
+</body>
+</html>
